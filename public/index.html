@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VML Test</title>
+    <style>
+        .mouse-marker {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 5px;
+            border-radius: 5px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Socket.IO Client</h1>
+    <div id="messages"></div>
+    <input id="messageInput" placeholder="Type your message here...">
+    <button onclick="sendMessage()">Send</button>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+
+        socket.on('message', (msg) => {
+            const messagesDiv = document.getElementById('messages');
+            const messageElement = document.createElement('div');
+            messageElement.textContent = `Tomo: ${new Date() - new Date(msg.ts)}ms - ${msg.value}`;
+            messagesDiv.appendChild(messageElement);
+        });
+
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = {
+                value: input.value,
+                ts: new Date()
+            };
+            socket.emit('message', message);
+            input.value = '';  // Clear input
+        }
+
+        // Add a mousemove listener to send the relative position
+        document.addEventListener('mousemove', (event) => {
+            const relativeX = event.clientX / window.innerWidth;
+            const relativeY = event.clientY / window.innerHeight;
+
+            // Emit the mouse event with the relative positions
+            socket.emit('mouse', { x: relativeX, y: relativeY });
+        });
+
+        // Object to keep track of markers by socket ID
+        const markers = {};
+
+        // Listen for 'mouse' event and show an absolute positioned div at the given position
+        socket.on('mouse', (data) => {
+            const { x, y, socketId } = data;
+
+            // Calculate absolute position
+            const absoluteX = x * window.innerWidth;
+            const absoluteY = y * window.innerHeight;
+
+            // Check if there's an existing marker for this socket ID, if not, create it
+            if (!markers[socketId]) {
+                const marker = document.createElement('div');
+                marker.id = `mouse-marker-${socketId}`;
+                marker.classList.add('mouse-marker');
+                marker.textContent = `User: ${socketId}`;  // Show the socket name
+                document.body.appendChild(marker);
+                markers[socketId] = marker;
+            }
+
+            // Update the position of the marker
+            markers[socketId].style.left = `${absoluteX}px`;
+            markers[socketId].style.top = `${absoluteY}px`;
+        });
+
+    </script>
+</body>
+</html>
